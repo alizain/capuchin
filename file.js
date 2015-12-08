@@ -1,19 +1,13 @@
 import { resolve } from 'path';
 import { compare } from 'buffertools';
 import { readFileSync } from 'graceful-fs';
+import { randomBytes } from 'crypto';
 
-export default class File {
+export default class VF {
 
-  constructor(p, contents, stats) {
-    this.path = resolve(p);
-    if (!contents || !(contents instanceof Buffer)) {
-      this.contents = readFileSync(this.path);
-    }
-    this.mtime = stats.mtime;
-  }
-
-  equals(other) {
-    return compare(this.contents, other.content) === 0;
+  constructor(path) {
+    this.path = path;
+    this.contents = randomBytes(256);
   }
 
 }

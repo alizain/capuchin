@@ -13,6 +13,7 @@
     "strict": [2, "global"],
     "comma-dangle": [2, "never"],
     "quotes": [ 1, "single" ],
+    "prefer-const": 0,
     "no-undef": 1,
     "no-var": 0,
     "no-extra-semi": 1,
