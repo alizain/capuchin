@@ -1,0 +1,31 @@
+{
+  "name": "capuchin",
+  "version": "0.1.0",
+  "description": "- Generator based - Supports series, and parallel chaining/execution - Supports async actions - Tree-based pipeline semantics/construction - Keep running (which, by definition, means watching)",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/alizain/capuchin.git"
+  },
+  "author": "Alizain Feerasta",
+  "license": "GPL-2.0",
+  "bugs": {
+    "url": "https://github.com/alizain/capuchin/issues"
+  },
+  "homepage": "https://github.com/alizain/capuchin#readme",
+  "devDependencies": {
+    "eslint": "^1.10.3",
+    "eslint-config-airbnb": "^2.0.0",
+    "eslint-plugin-react": "^3.11.3"
+  },
+  "dependencies": {
+    "babel-core": "^6.2.1",
+    "babel-preset-es2015": "^6.1.18",
+    "event-stream": "^3.3.2",
+    "file-loader": "^0.8.5",
+    "glob": "^6.0.1"
+  }
+}
