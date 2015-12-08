@@ -8,13 +8,18 @@ const watch = Symbol('watch');
 const start = Symbol('run');
 const run = Symbol('run');
 
+const initial = Symbol('initial');
+const final = Symbol('output');
+const children = Symbol('children');
+const transforms = Symbol('transforms');
+
 class Capuchin {
 
   constructor() {
-    this.in = new Map();
-    this.out = new Map();
-    this.transforms = new Set();
-    this.children = new Set();
+    this[initial] = new Map();
+    this[final] = new Map();
+    this[transforms] = new Set();
+    this[children] = new Set();
   }
 
   src(...sources) {
@@ -23,7 +28,7 @@ class Capuchin {
         chokidar.watch(source, {
           persistent: false,
           alwaysStat: true
-        }).on('ready', this[run].bind(this, this.transforms))
+        }).on('ready', this[run].bind(this, this[transforms]))
           .on('add', this[watch].bind(this))
           .on('change', this[watch].bind(this))
           .on('unlink', this[watch].bind(this));
@@ -34,22 +39,28 @@ class Capuchin {
     return this;
   }
 
-  [start]() {
-
+  run(func) {
+    this[transforms].add(func);
   }
 
-  [run](transforms, ...args) {
-    console.log('yahoo');
-    console.log(args);
-    // Promise.all(this.in.values())
-    //   .then(() => {});
+  [run](map) {
+    let chain = Promise.resolve(map);
+    this[transforms].forEach((func) {
+      chain = chain.then(func);
+    });
+    chain.catch((err) => {
+      console.log('ooops');
+    });
+    chain.done((final) => {
+      console.log('yaaaayyy!');
+    });
   }
 
-  [watch](p, obj) {
+  [watch](e, p, obj) {
     const path = resolve(p);
     if (obj && obj instanceof Stats && obj.isFile()) {
-      if (!this.in.has(path) || this.in.get(path).mtime < obj.mtime) {
-        this.in.set(path, new File(path, null, obj));
+      if (!this[initial].has(path) || this[initial].get(path).mtime < obj.mtime) {
+        this[initial].set(path, new File(path, null, obj));
         this[run](); // start transform pipeline here
       }
     }
@@ -60,7 +71,7 @@ class Capuchin {
   }
 
   * [Symbol.iterator]() {
-    yield *this.out.values();
+    yield *this[final].values();
   }
 
 }

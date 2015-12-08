@@ -5,7 +5,7 @@ let js = assets1.do(split('.js', /\.js$/, '.jsx'));
 let css = assets1.do(split('.css'));
 
 let scss = capu.src('./scss/**/*.scss')
-  .do(sass.process());
+  .each(sass.process());
 
 let bundle = webpack.bundle('./index.html');
 
