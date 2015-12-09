@@ -18,7 +18,7 @@ class Capuchin {
     this.id = sequence.next().value;
     this.opts = opts;
     this.type = type;
-    this.transform = transform;
+    this.transform = transform || noop;
     this.children = new Set();
     this.inputs = new Map();
     this.output = new Map();
@@ -28,16 +28,17 @@ class Capuchin {
       } else if (Array.isArray(src)) {
         // assume array of glob paths
       } else if (src instanceof Capuchin) {
-        src.dep(this[RUN]);
+        this.dep(src[RUN]);
       }
     });
-    this[RUN](Promise.resolve(this.inputs));
+    // this[RUN](Promise.resolve(this.inputs));
   }
 
   [RUN](input) {
-    this.log('input for func ' + input);
+    this.log('running');
     return input
       .then((data) => {
+        this.log('checking for data integrity');
         if (!(data instanceof Map)) {
           throw new Error('only Maps can be passed around');
         }
@@ -49,9 +50,7 @@ class Capuchin {
         }
       })
       .then((data) => {
-        if (this.type === SRC_F) {
-          return data;
-        }
+        this.log('running transformation');
         let p = this.transform(data);
         if (!(p instanceof Promise)) {
           p = Promise.resolve(p);
@@ -72,18 +71,22 @@ class Capuchin {
   }
 
   dep(func) {
+    this.log('adding children');
     this.children.add(func);
   }
 
   src(...sources) {
-    return new Capuchin(this.opts, SRC_F, noop, ...sources);
+    this.log('adding sources');
+    return new Capuchin(this.opts, SRC_F, noop, this, ...sources);
   }
 
   reduce(func) {
+    this.log('adding reduce');
     return new Capuchin(this.opts, REDUCE_F, func, this);
   }
 
   map(func) {
+    this.log('adding map');
     return new Capuchin(this.opts, MAP_F, func, this);
   }
 
@@ -91,9 +94,16 @@ class Capuchin {
     logger(this.id, this.transform ? this.transform.name : '', ...args);
   }
 
+  once() {
+    setTimeout(function() {
+      this[RUN](Promise.resolve(this.inputs));
+    }.bind(this), 0);
+    return this;
+  }
+
 }
 
-let pipeline = new Capuchin({ a: 1 });
+let pipeline = new Capuchin({ a: 1 }).once();
 
 let test1 = pipeline
   .src('alizain', 'zee')

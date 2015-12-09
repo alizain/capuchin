@@ -12,9 +12,11 @@ export function* generateSequence(i) {
   }
 }
 
-export function noop() {}
+export function noop(data) {
+  return data;
+}
 
-export function logger(id, name, ...args) {
+export function logger(id, ...args) {
   let color = chalk[allowedColors[id % 3]];
   let d = new Date();
   console.log( // eslint-disable-line
@@ -31,9 +33,7 @@ export function logger(id, name, ...args) {
     ].join(''),
     color([
       '#',
-      id,
-      ' ',
-      name
+      id
     ].join('')),
     ...args
   );
