@@ -1,9 +1,14 @@
+import Promise from 'bluebird';
 import VF from './file';
 import {
   generateSequence,
   logger,
   noop
 } from './utils';
+
+Promise.onPossiblyUnhandledRejection((err) => {
+  throw err;
+});
 
 const RUN = Symbol('run');
 const SRC_F = Symbol('src');
@@ -12,14 +17,14 @@ const MAP_F = Symbol('map');
 
 const sequence = generateSequence(0);
 
-class Capuchin {
+class Capu {
 
   constructor(opts, type, transform, ...sources) {
     this.id = sequence.next().value;
     this.opts = opts;
     this.type = type;
     this.transform = transform || noop;
-    this.children = new Set();
+    this.children = new Array();
     this.inputs = new Map();
     this.output = new Map();
     sources.forEach((src) => {
@@ -27,8 +32,8 @@ class Capuchin {
         this.inputs.set(src, new VF(src));
       } else if (Array.isArray(src)) {
         // assume array of glob paths
-      } else if (src instanceof Capuchin) {
-        this.dep(src[RUN]);
+      } else if (src instanceof Capu) {
+        src.dep(this);
       }
     });
     // this[RUN](Promise.resolve(this.inputs));
@@ -36,7 +41,7 @@ class Capuchin {
 
   [RUN](input) {
     this.log('running');
-    return input
+    return Promise.resolve(input)
       .then((data) => {
         this.log('checking for data integrity');
         if (!(data instanceof Map)) {
@@ -48,23 +53,31 @@ class Capuchin {
           }
           this.inputs.set(path, vf);
         }
+        this.log(this.inputs);
+        return data;
       })
       .then((data) => {
         this.log('running transformation');
-        let p = this.transform(data);
+        this.log(this.transform);
+        var p = this.transform(data);
+        this.log(typeof p);
         if (!(p instanceof Promise)) {
           p = Promise.resolve(p);
         }
         return p;
       })
-      .then((data) => this.out = data)
+      .then((data) => {
+        this.out = data;
+        return data;
+      })
       .then((data) => {
         if (this.children.size <= 0) {
           return data;
         }
-        var arr = [];
-        this.children.forEach((func) => {
-          arr.push(func(data));
+        this.log('running children');
+        this.log(data);
+        let arr = this.children.map((child) => {
+          return child[RUN](data);
         });
         return Promise.all(arr);
       });
@@ -72,42 +85,46 @@ class Capuchin {
 
   dep(func) {
     this.log('adding children');
-    this.children.add(func);
+    this.children.push(func);
   }
 
   src(...sources) {
     this.log('adding sources');
-    return new Capuchin(this.opts, SRC_F, noop, this, ...sources);
+    return new Capu(this.opts, SRC_F, noop, this, ...sources);
   }
 
   reduce(func) {
-    this.log('adding reduce');
-    return new Capuchin(this.opts, REDUCE_F, func, this);
+    this.log('adding reducer');
+    return new Capu(this.opts, REDUCE_F, func, this);
   }
 
   map(func) {
-    this.log('adding map');
-    return new Capuchin(this.opts, MAP_F, func, this);
+    this.log('adding mapper');
+    return new Capu(this.opts, MAP_F, func, this);
   }
 
   log(...args) {
-    logger(this.id, this.transform ? this.transform.name : '', ...args);
+    logger(this.id, ...args);
   }
 
   once() {
-    setTimeout(function() {
-      this[RUN](Promise.resolve(this.inputs));
+    setImmediate(function wait() {
+      this[RUN](this.inputs);
     }.bind(this), 0);
     return this;
   }
 
 }
 
-let pipeline = new Capuchin({ a: 1 }).once();
+let pipeline = new Capu({ a: 1 }).once();
 
 let test1 = pipeline
   .src('alizain', 'zee')
   .reduce(function test(files) {
-    log('hahaha ' + files);
+    console.log(typeof files);
+    return files;
+  })
+  .map(function test2(files) {
+    console.log(files.size);
     return files;
   });

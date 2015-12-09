@@ -2,7 +2,8 @@ import chalk from 'chalk';
 const allowedColors = [
   'blue',
   'magenta',
-  'cyan'
+  'cyan',
+  'yellow'
 ];
 
 export function* generateSequence(i) {
@@ -17,7 +18,7 @@ export function noop(data) {
 }
 
 export function logger(id, ...args) {
-  let color = chalk[allowedColors[id % 3]];
+  let color = chalk[allowedColors[id % allowedColors.length]];
   let d = new Date();
   console.log( // eslint-disable-line
     [
