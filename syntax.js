@@ -1,3 +1,5 @@
+/* eslint-disable */
+
 let entry = capu.src('./index.html');
 let assets1 = entry1.do(assets());
 
@@ -7,21 +9,20 @@ let css = assets1.do(split('.css'));
 let scss = capu.src('./scss/**/*.scss')
   .each(sass.process());
 
-let bundle = webpack.bundle('./index.html');
-
 let imgs = capu.src();
 
 postCss = css.src('./css/**/*.css', js.do(webpack.extractCSS()), scss)
   .do(minifyCSS());
 
-let images = capu.src('./images/**/*.jpg', postCss.do(extractIMGs()))
-  .do(sourceMap())
-  .do(bundle);
+let images = capu.src('./images/**/*.jpg', postCss.do(extractIMGs()));
 
-js.do(minifyJS())
-  .do(sourceMap())
-  .do(bundle);
+let finalJs = js.do(minifyJS());
 
 entry.watch();
 scss.watch();
 imgs.watch();
+
+var img = [
+  'img/**/*.jpg',
+  'im'
+]

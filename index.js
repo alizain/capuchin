@@ -1,38 +1,74 @@
 import VF from './file';
+import {
+  generateSequence,
+  logger,
+  noop
+} from './utils';
 
-const NOOP = Symbol('noop');
+const RUN = Symbol('run');
+const SRC_F = Symbol('src');
+const REDUCE_F = Symbol('reduce');
+const MAP_F = Symbol('map');
+
+const sequence = generateSequence(0);
 
 class Capuchin {
 
   constructor(opts, type, transform, ...sources) {
+    this.id = sequence.next().value;
+    this.opts = opts;
+    this.type = type;
     this.transform = transform;
     this.children = new Set();
-    this.in = new Map();
-    this.out = new Map();
+    this.inputs = new Map();
+    this.output = new Map();
     sources.forEach((src) => {
       if (typeof src === 'string') {
-        this.in.set(src, new VF(src));
+        this.inputs.set(src, new VF(src));
+      } else if (Array.isArray(src)) {
+        // assume array of glob paths
       } else if (src instanceof Capuchin) {
-        for (let [k, v] of src) {
-          this.in.set(k, v);
-        }
-        src.dep(this.run);
+        src.dep(this[RUN]);
       }
     });
-    // this.run(Promise.resolve(this.in));
+    this[RUN](Promise.resolve(this.inputs));
   }
 
-  run(input) {
-    return Promise.resolve(input)
+  [RUN](input) {
+    this.log('input for func ' + input);
+    return input
       .then((data) => {
-        if(this.transform !== NOOP)
+        if (!(data instanceof Map)) {
+          throw new Error('only Maps can be passed around');
+        }
+        for (let [path, vf] of data) {
+          if (!(vf instanceof VF)) {
+            throw new Error('only VF instances allowed');
+          }
+          this.inputs.set(path, vf);
+        }
+      })
+      .then((data) => {
+        if (this.type === SRC_F) {
+          return data;
+        }
         let p = this.transform(data);
         if (!(p instanceof Promise)) {
           p = Promise.resolve(p);
         }
         return p;
       })
-      .then((data) => this.out = data);
+      .then((data) => this.out = data)
+      .then((data) => {
+        if (this.children.size <= 0) {
+          return data;
+        }
+        var arr = [];
+        this.children.forEach((func) => {
+          arr.push(func(data));
+        });
+        return Promise.all(arr);
+      });
   }
 
   dep(func) {
@@ -40,15 +76,28 @@ class Capuchin {
   }
 
   src(...sources) {
-    return new Capuchin(this.opts, this.type, NOOP, this.in, ...sources);
+    return new Capuchin(this.opts, SRC_F, noop, ...sources);
   }
 
-  next(func) {
-    return new Capuchin(this.opts, this.type, func, this.in);
+  reduce(func) {
+    return new Capuchin(this.opts, REDUCE_F, func, this);
   }
 
-  *[Symbol.iterator]() {
-    yield *this.out;
+  map(func) {
+    return new Capuchin(this.opts, MAP_F, func, this);
+  }
+
+  log(...args) {
+    logger(this.id, this.transform ? this.transform.name : '', ...args);
   }
 
 }
+
+let pipeline = new Capuchin({ a: 1 });
+
+let test1 = pipeline
+  .src('alizain', 'zee')
+  .reduce(function test(files) {
+    log('hahaha ' + files);
+    return files;
+  });

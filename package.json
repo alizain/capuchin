@@ -31,6 +31,7 @@
     "chalk": "^1.1.1",
     "chokidar": "^1.4.0",
     "event-stream": "^3.3.2",
+    "fancy-log": "^1.1.0",
     "file-loader": "^0.8.5",
     "glob": "^6.0.1",
     "graceful-fs": "^4.1.2"
