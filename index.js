@@ -11,22 +11,31 @@ Promise.onPossiblyUnhandledRejection((err) => {
 });
 
 const RUN = Symbol('run');
-const SRC_F = Symbol('src');
-const REDUCE_F = Symbol('reduce');
-const MAP_F = Symbol('map');
+const RUN_CHILDREN = Symbol('run_children');
+const RUN_TRANSFORM = Symbol('run_transform');
+const INITIALIZE = Symbol('initialize');
+const SRC_FUNC = Symbol('src');
+const MAP_FUNC = Symbol('map');
+const REDUCE_FUNC = Symbol('reduce');
 
 const sequence = generateSequence(0);
 
-class Capu {
+export class Capu {
 
   constructor(opts, type, transform, ...sources) {
     this.id = sequence.next().value;
     this.opts = opts;
-    this.type = type;
+    this.type = type || SRC_FUNC;
     this.transform = transform || noop;
     this.children = new Array();
     this.inputs = new Map();
     this.output = new Map();
+    this[INITIALIZE](sources);
+    // this[RUN](Promise.resolve(this.inputs));
+  }
+
+  [INITIALIZE](sources) {
+
     sources.forEach((src) => {
       if (typeof src === 'string') {
         this.inputs.set(src, new VF(src));
@@ -36,51 +45,71 @@ class Capu {
         src.dep(this);
       }
     });
-    // this[RUN](Promise.resolve(this.inputs));
   }
 
-  [RUN](input) {
+  [RUN](newInput) {
     this.log('running');
-    return Promise.resolve(input)
-      .then((data) => {
-        this.log('checking for data integrity');
-        if (!(data instanceof Map)) {
-          throw new Error('only Maps can be passed around');
-        }
-        for (let [path, vf] of data) {
-          if (!(vf instanceof VF)) {
-            throw new Error('only VF instances allowed');
-          }
-          this.inputs.set(path, vf);
-        }
-        this.log(this.inputs);
-        return data;
-      })
-      .then((data) => {
-        this.log('running transformation');
-        this.log(this.transform);
-        var p = this.transform(data);
-        this.log(typeof p);
-        if (!(p instanceof Promise)) {
-          p = Promise.resolve(p);
-        }
-        return p;
-      })
+    if (this.type === SRC_FUNC) {
+      return this[RUN_CHILDREN](newInput);
+    }
+    this.log('checking for data integrity');
+    if (!(newInput instanceof Map)) {
+      throw new Error('only Maps can be passed around');
+    }
+    for (let [path, vf] of newInput) {
+      if (!(vf instanceof VF)) {
+        throw new Error('only VF instances allowed');
+      }
+      this.inputs.set(path, vf);
+    }
+    let rootP;
+    if (this.type === REDUCE_FUNC) {
+      this.log('running reduce transformation');
+      rootP = Capu[RUN_TRANSFORM](this.transform, this.inputs);
+    } else if (this.type === MAP_FUNC) {
+      this.log('running map transformation');
+      let pArray = [];
+      newInput.forEach((path, vf) => {
+        return pArray.push(Capu[RUN_TRANSFORM](this.transform, path, vf));
+      });
+      console.log(pArray);
+      rootP = Promise.all(pArray);
+    }
+    return rootP
       .then((data) => {
         this.out = data;
-        return data;
+        return this[RUN_CHILDREN](data);
       })
-      .then((data) => {
-        if (this.children.size <= 0) {
-          return data;
-        }
-        this.log('running children');
-        this.log(data);
-        let arr = this.children.map((child) => {
-          return child[RUN](data);
-        });
-        return Promise.all(arr);
+      .done(function() {
+        console.log('yahooo');
       });
+  }
+
+  [RUN_CHILDREN](data) {
+    if (this.children.length <= 0) {
+      return data;
+    }
+    this.log('running children');
+    let p = data;
+    if (!(data instanceof Promise)) {
+      p = Promise.resolve(data);
+    }
+    return p.then((d) => {
+      let pArray = this.children.map((func) => {
+        return func[RUN](d);
+      });
+      return Promise.all(pArray);
+    });
+  }
+
+  static [RUN_TRANSFORM](func, data) {
+    let result = func(data);
+    if (result instanceof Error) {
+      throw result;
+    } else if (!(result instanceof Promise)) {
+      result = Promise.resolve(result);
+    }
+    return result;
   }
 
   dep(func) {
@@ -90,17 +119,23 @@ class Capu {
 
   src(...sources) {
     this.log('adding sources');
-    return new Capu(this.opts, SRC_F, noop, this, ...sources);
+    return new Capu(this.opts, SRC_FUNC, noop, this, ...sources);
+  }
+
+  next(func, type) {
+    this.log('adding next function');
+    let opts = Object.assign({}, this.opts, { type: type });
+    return new Capu(opts, null, func, this);
   }
 
   reduce(func) {
     this.log('adding reducer');
-    return new Capu(this.opts, REDUCE_F, func, this);
+    return new Capu(this.opts, REDUCE_FUNC, func, this);
   }
 
   map(func) {
     this.log('adding mapper');
-    return new Capu(this.opts, MAP_F, func, this);
+    return new Capu(this.opts, MAP_FUNC, func, this);
   }
 
   log(...args) {
@@ -116,6 +151,10 @@ class Capu {
 
 }
 
+console.log('starting execution');
+var startTime = new Date().getTime();
+var endTime = new Date().getTime();
+
 let pipeline = new Capu({ a: 1 }).once();
 
 let test1 = pipeline
@@ -126,5 +165,7 @@ let test1 = pipeline
   })
   .map(function test2(files) {
     console.log(files.size);
+    endTime = new Date().getTime();
+    console.log(endTime - startTime);
     return files;
-  });
+  })

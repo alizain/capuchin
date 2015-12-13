@@ -4,6 +4,11 @@ var _slicedToArray = (function () { function sliceIterator(arr, i) { var _arr = 
 
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
 
+Object.defineProperty(exports, "__esModule", {
+  value: true
+});
+exports.Capu = undefined;
+
 var _bluebird = require('bluebird');
 
 var _bluebird2 = _interopRequireDefault(_bluebird);
@@ -16,6 +21,8 @@ var _utils = require('./utils');
 
 function _interopRequireDefault(obj) { return obj && obj.__esModule ? obj : { default: obj }; }
 
+function _typeof(obj) { return obj && typeof Symbol !== "undefined" && obj.constructor === Symbol ? "symbol" : typeof obj; }
+
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError("Cannot call a class as a function"); } }
 
 _bluebird2.default.onPossiblyUnhandledRejection(function (err) {
@@ -23,13 +30,15 @@ _bluebird2.default.onPossiblyUnhandledRejection(function (err) {
 });
 
 var RUN = Symbol('run');
-var SRC_F = Symbol('src');
-var REDUCE_F = Symbol('reduce');
-var MAP_F = Symbol('map');
+var RUN_CHILDREN = Symbol('run_children');
+var RUN_TRANSFORM = Symbol('run_transform');
+var SRC_FUNC = Symbol('src');
+var MAP_FUNC = Symbol('map');
+var REDUCE_FUNC = Symbol('reduce');
 
 var sequence = (0, _utils.generateSequence)(0);
 
-var Capu = (function () {
+var Capu = exports.Capu = (function () {
   function Capu(opts, type, transform) {
     var _this = this;
 
@@ -37,7 +46,7 @@ var Capu = (function () {
 
     this.id = sequence.next().value;
     this.opts = opts;
-    this.type = type;
+    this.type = type || SRC_FUNC;
     this.transform = transform || _utils.noop;
     this.children = new Array();
     this.inputs = new Map();
@@ -53,81 +62,93 @@ var Capu = (function () {
       } else if (Array.isArray(src)) {
         // assume array of glob paths
       } else if (src instanceof Capu) {
-          src.dep(_this[RUN]);
+          src.dep(_this);
         }
     });
     // this[RUN](Promise.resolve(this.inputs));
   }
 
   _createClass(Capu, [{
-    key: 'listener',
-    value: function listener(data) {
-      console.log(data);
-      return data;
-    }
-  }, {
     key: RUN,
-    value: function value(input) {
+    value: function value(newInput) {
       var _this2 = this;
 
-      console.log(this);
       this.log('running');
-      this.log(this.children);
-      return _bluebird2.default.resolve(input).then(function (data) {
-        _this2.log('checking for data integrity');
-        if (!(data instanceof Map)) {
-          throw new Error('only Maps can be passed around');
-        }
-        var _iteratorNormalCompletion = true;
-        var _didIteratorError = false;
-        var _iteratorError = undefined;
+      if (this.type === SRC_FUNC) {
+        return this[RUN_CHILDREN](newInput);
+      }
+      this.log('checking for data integrity');
+      if (!(newInput instanceof Map)) {
+        throw new Error('only Maps can be passed around');
+      }
+      var _iteratorNormalCompletion = true;
+      var _didIteratorError = false;
+      var _iteratorError = undefined;
 
+      try {
+        for (var _iterator = newInput[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+          var _step$value = _slicedToArray(_step.value, 2);
+
+          var path = _step$value[0];
+          var vf = _step$value[1];
+
+          if (!(vf instanceof _file2.default)) {
+            throw new Error('only VF instances allowed');
+          }
+          this.inputs.set(path, vf);
+        }
+      } catch (err) {
+        _didIteratorError = true;
+        _iteratorError = err;
+      } finally {
         try {
-          for (var _iterator = data[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
-            var _step$value = _slicedToArray(_step.value, 2);
-
-            var path = _step$value[0];
-            var vf = _step$value[1];
-
-            if (!(vf instanceof _file2.default)) {
-              throw new Error('only VF instances allowed');
-            }
-            _this2.inputs.set(path, vf);
+          if (!_iteratorNormalCompletion && _iterator.return) {
+            _iterator.return();
           }
-        } catch (err) {
-          _didIteratorError = true;
-          _iteratorError = err;
         } finally {
-          try {
-            if (!_iteratorNormalCompletion && _iterator.return) {
-              _iterator.return();
-            }
-          } finally {
-            if (_didIteratorError) {
-              throw _iteratorError;
-            }
+          if (_didIteratorError) {
+            throw _iteratorError;
           }
         }
+      }
 
+      var rootP = undefined;
+      if (this.type === REDUCE_FUNC) {
+        this.log('running reduce transformation');
+        rootP = Capu[RUN_TRANSFORM](this.transform, this.inputs);
+      } else if (this.type === MAP_FUNC) {
+        (function () {
+          _this2.log('running map transformation');
+          var pArray = [];
+          newInput.forEach(function (path, vf) {
+            pArray.push(Capu[RUN_TRANSFORM](_this2.transform, path, vf));
+          });
+          rootP = _bluebird2.default.all(pArray);
+        })();
+      }
+      return rootP.then(function (data) {
+        _this2.out = data;
+        return _this2[RUN_CHILDREN](data);
+      });
+    }
+  }, {
+    key: RUN_CHILDREN,
+    value: function value(data) {
+      var _this3 = this;
+
+      if (this.children.length <= 0) {
         return data;
-      }).then(function (data) {
-        _this2.log('running transformation');
-        var p = _this2.transform(data);
-        if (!(p instanceof _bluebird2.default)) {
-          p = _bluebird2.default.resolve(p);
-        }
-        return p;
-      }).then(function (data) {
-        return _this2.out = data;
-      }).then(function (data) {
-        if (_this2.children.size <= 0) {
-          return data;
-        }
-        _this2.log('running children');
-        var arr = _this2.children.map(function (func) {
-          return func(data);
+      }
+      this.log('running children');
+      var p = data;
+      if (!(data instanceof _bluebird2.default)) {
+        p = _bluebird2.default.resolve(data);
+      }
+      return p.then(function (d) {
+        var pArray = _this3.children.map(function (func) {
+          return func[RUN](d);
         });
-        return _bluebird2.default.all(arr);
+        return _bluebird2.default.all(pArray);
       });
     }
   }, {
@@ -145,19 +166,19 @@ var Capu = (function () {
         sources[_key2] = arguments[_key2];
       }
 
-      return new (Function.prototype.bind.apply(Capu, [null].concat([this.opts, SRC_F, _utils.noop, this], sources)))();
+      return new (Function.prototype.bind.apply(Capu, [null].concat([this.opts, SRC_FUNC, _utils.noop, this], sources)))();
     }
   }, {
     key: 'reduce',
     value: function reduce(func) {
       this.log('adding reducer');
-      return new Capu(this.opts, REDUCE_F, func, this);
+      return new Capu(this.opts, REDUCE_FUNC, func, this);
     }
   }, {
     key: 'map',
     value: function map(func) {
       this.log('adding mapper');
-      return new Capu(this.opts, MAP_F, func, this);
+      return new Capu(this.opts, MAP_FUNC, func, this);
     }
   }, {
     key: 'log',
@@ -171,10 +192,21 @@ var Capu = (function () {
   }, {
     key: 'once',
     value: function once() {
-      setTimeout((function () {
+      setImmediate((function wait() {
         this[RUN](this.inputs);
       }).bind(this), 0);
       return this;
+    }
+  }], [{
+    key: RUN_TRANSFORM,
+    value: function value(func, data) {
+      var result = func(data);
+      if (result instanceof Error) {
+        throw result;
+      } else if (!(result instanceof _bluebird2.default)) {
+        result = _bluebird2.default.resolve(result);
+      }
+      return result;
     }
   }]);
 
@@ -184,6 +216,9 @@ var Capu = (function () {
 var pipeline = new Capu({ a: 1 }).once();
 
 var test1 = pipeline.src('alizain', 'zee').reduce(function test(files) {
-  log('hahaha ' + files);
+  console.log(typeof files === 'undefined' ? 'undefined' : _typeof(files));
+  return files;
+}).map(function test2(files) {
+  console.log(files.size);
   return files;
 });

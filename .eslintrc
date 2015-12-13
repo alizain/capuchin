@@ -12,6 +12,7 @@
   "rules": {
     "strict": [2, "global"],
     "comma-dangle": [2, "never"],
+    "padded-blocks": 0,
     "quotes": [ 1, "single" ],
     "prefer-const": 0,
     "no-undef": 1,

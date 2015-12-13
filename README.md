@@ -1,4 +1,6 @@
-# Capuchin Task Pipeline Orchestration
+# Capuchin
+
+Capu is a slightly interesting build system that uses true pipes to allow pretty much any possible build tree structure thing-a-majigie.
 
 - Generator based
 - Supports series, and parallel chaining/execution
@@ -11,7 +13,7 @@
 There is not 1 problem, but actually 3 orthogonal problems
 
 **reading/writing files**
-All this needs is a wrapper around the native `fs` module to abstract the actual work of reading/writing whilst only exposing the actual content to be transformed
+All this needs is a wrapper around the native `fs` module to abstract the actual work of reading/writing whilst only exposing the actual content to be transformed. This wrapper would include automatic file watching for changes, and be usable for memory-only intermediate files.
 
 **declaratively define dependencies in multiple places**
 Some dependencies are declared in JS, others in CSS, and others still in HTML. As all of these languages and environments evolve, it will be important to be respectful of the way they manage dependencies.
@@ -23,15 +25,12 @@ The actual process of building a website is really unique for every company and 
 ### Interface
 
 ```javascript
-{
-  root : '/',
-  dir : '/home/user/dir',
-  base : 'file.txt',
-  ext : '.txt',
-  name : 'file',
-  mime: 'text/plain',
-  source: {},
-  content: '',
-  onDisk: false
-}
+import { assets } from 'capuchin-plugins-base';
+
+const capu = new Capuchin({ opts });
+
+const index = capu.src('./index.html');
+
+const js = index.map(assets('script', '.js'));
+const css = index.map(assets(''))
 ```

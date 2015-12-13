@@ -14,6 +14,7 @@ export function* generateSequence(i) {
 }
 
 export function noop(data) {
+  console.log(data);
   return data;
 }
 
