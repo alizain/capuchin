@@ -1,5 +1,5 @@
 import Promise from 'bluebird';
-import VF from './lib/vf';
+import VF from './vf';
 import {
   generateSequence,
   logger
