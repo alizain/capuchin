@@ -1,5 +1,5 @@
 import Promise from 'bluebird';
-import VF from './file';
+import VF from './lib/vf';
 import {
   generateSequence,
   logger
@@ -105,10 +105,9 @@ Capu.prototype.log = function(...args) {
 Capu.prototype.once = function() {
   setImmediate(() => {
     this[RUN](this.inputs)
-      .then(function(res) {
-        console.log('DONE!!!', res);
+      .then(function() {
+        logger.success('DONE');
       }, function(err) {
-        console.log('CATCH!!!', err);
         throw err;
       });
   }, 0);

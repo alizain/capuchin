@@ -13,13 +13,12 @@ let test1 = pipeline
   //   return files;
   // })
   .src('alizain', 'zee')
-  // .next(null, function(files) {
-  //   console.log('yaaay, two being run', files);
-  //   return files;
-  // })
-  // .src('f')
   .next(null, function(files) {
-    console.log('yaaay, three being run', files);
+    console.log('yaaay, two being run', files);
+    return files;
+  })
+  .src('f')
+  .next(null, function(files) {
     return files;
   })
 

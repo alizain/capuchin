@@ -13,30 +13,41 @@ export function* generateSequence(i) {
   }
 }
 
-export function noop(data) {
-  console.log(data);
-  return data;
+export function time() {
+  let d = new Date();
+  return [
+    '[',
+    chalk.grey([
+      d.getUTCHours(),
+      ':',
+      d.getUTCMinutes(),
+      ':',
+      d.getUTCSeconds()
+    ].join('')),
+    ']'
+  ].join('');
 }
 
 export function logger(id, ...args) {
-  let color = chalk[allowedColors[id % allowedColors.length]];
-  let d = new Date();
+  let color = chalk.white;
+  let pre = id;
+  if (!isNaN(id)) {
+    color = chalk[allowedColors[id % allowedColors.length]];
+    pre = '#' + id;
+  }
   console.log( // eslint-disable-line
-    [
-      '[',
-      chalk.grey([
-        d.getUTCHours(),
-        ':',
-        d.getUTCMinutes(),
-        ':',
-        d.getUTCSeconds()
-      ].join('')),
-      ']'
-    ].join(''),
-    color([
-      '#',
-      id
-    ].join('')),
+    time(),
+    color(pre),
     ...args
   );
 }
+
+logger.success = function(...args) {
+  let colored = args.map((msg) => {
+    return typeof msg === 'string' ? chalk.green(msg) : msg;
+  });
+  console.log( // eslint-disable-line
+    time(),
+    ...colored
+  );
+};

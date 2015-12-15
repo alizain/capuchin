@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "dist": "babel ./index.js -o ./dist/capu.js",
-    "dev": "nodemon --exec babel-node -- dev.js"
+    "dev": "nodemon --exec babel-node -- test.js"
   },
   "repository": {
     "type": "git",
