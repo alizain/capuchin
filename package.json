@@ -4,7 +4,8 @@
   "description": "- Generator based - Supports series, and parallel chaining/execution - Supports async actions - Tree-based pipeline semantics/construction - Keep running (which, by definition, means watching)",
   "main": "index.js",
   "scripts": {
-    "dist": "babel ./index.js -o ./dist/capu.js"
+    "dist": "babel ./index.js -o ./dist/capu.js",
+    "dev": "nodemon --exec babel-node -- dev.js"
   },
   "repository": {
     "type": "git",

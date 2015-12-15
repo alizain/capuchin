@@ -45,6 +45,7 @@ export class Capu {
         src.dep(this);
       }
     });
+    
   }
 
   [RUN](newInput) {
@@ -69,8 +70,13 @@ export class Capu {
     } else if (this.type === MAP_FUNC) {
       this.log('running map transformation');
       let pArray = [];
+      console.log(newInput);
       newInput.forEach((path, vf) => {
-        return pArray.push(Capu[RUN_TRANSFORM](this.transform, path, vf));
+        console.log('pre tranforms');
+        var x = Capu[RUN_TRANSFORM](this.transform, path, vf);
+        console.log(x);
+        pArray.push(x);
+        return x;
       });
       console.log(pArray);
       rootP = Promise.all(pArray);
@@ -80,7 +86,7 @@ export class Capu {
         this.out = data;
         return this[RUN_CHILDREN](data);
       })
-      .done(function() {
+      .done(function () {
         console.log('yahooo');
       });
   }
@@ -151,21 +157,4 @@ export class Capu {
 
 }
 
-console.log('starting execution');
-var startTime = new Date().getTime();
-var endTime = new Date().getTime();
-
-let pipeline = new Capu({ a: 1 }).once();
-
-let test1 = pipeline
-  .src('alizain', 'zee')
-  .reduce(function test(files) {
-    console.log(typeof files);
-    return files;
-  })
-  .map(function test2(files) {
-    console.log(files.size);
-    endTime = new Date().getTime();
-    console.log(endTime - startTime);
-    return files;
-  })
+export default Capu;
