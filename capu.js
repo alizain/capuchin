@@ -11,16 +11,13 @@ import {
 // });
 
 const INITIALIZE = Symbol();
-
 const RUN = Symbol();
-const RUN_CHILDREN = Symbol();
-const RUN_TRANSFORM = Symbol();
 
 const SEQUENCER = generateSequence(0);
 
 function Capu(opts, transform, ...sources) {
   this.id = SEQUENCER.next().value;
-  this.log('hello', opts, transform);
+  this.log('doing setup');
   this.opts = opts || {};
   this.transform = transform;
   this.children = new Array();
@@ -31,6 +28,7 @@ function Capu(opts, transform, ...sources) {
 }
 
 Capu.prototype[INITIALIZE] = function(sources) {
+  this.log('adding sources');
   sources.forEach((src) => {
     if (typeof src === 'string') {
       this.inputs.set(src, new VF(src));
@@ -43,76 +41,51 @@ Capu.prototype[INITIALIZE] = function(sources) {
 };
 
 Capu.prototype[RUN] = function(newInput) {
-  let rootP = new Promise((resolve, reject) => {
-    this.log('running');
-    this.log('checking for data integrity');
-    if (!(newInput instanceof Map)) {
-      throw new Error('only Maps can be passed around');
-    }
+  this.log('running');
+  if (newInput instanceof Map) {
+    // run diff and figure out how much has changed
     for (let [path, vf] of newInput) {
       if (!(vf instanceof VF)) {
         throw new Error('only VF instances allowed');
       }
       this.inputs.set(path, vf);
     }
-    let p;
-    if (typeof this.transform === 'function') {
-      this.log('running transformation');
-      p = this.transform(this.inputs);
-    } else {
-      p = this.inputs;
+    // if nothing has changed, then we don't need to run
+  }
+  let rootP;
+  if (typeof this.transform === 'function') {
+    this.log('running transformation');
+    rootP = this.transform(this.inputs);
+  } else {
+    rootP = this.inputs;
+  }
+  if (!(rootP instanceof Promise)) {
+    rootP = Promise.resolve(rootP);
+  }
+  rootP = rootP.then((outputs) => {
+    this.log('checking for data integrity');
+    if (!(outputs instanceof Map)) {
+      throw new Error('only Maps can be passed around');
     }
-    if (!(rootP instanceof Promise)) {
-      p = Promise.resolve(p);
-    }
-    p = rootP.then((outputs) => {
-      this.log('saving outputs from transformation');
-      this.outputs = outputs;
-      return this.outputs;
-      return resolve(this.outputs);
-    });
-    if (this.children.length > 0) {
-      rootP = rootP.then((outputs) => {
-        this.log('running children');
-        let pArray = this.children.map((child) => {
-          return child[RUN](outputs);
-        });
-        return Promise.all(pArray);
-      }, reject);
-    }
-    return rootP.then(resolve, reject);
+    this.log('saving outputs from transformation');
+    // calculate diff between old output & new output
+    this.outputs = outputs;
+    // send only new output back
+    return outputs;
   });
-};
-
-Capu.prototype[RUN_CHILDREN] = function(data) {
-  if (this.children.length <= 0) {
-    return data;
-  }
-  this.log('running children');
-  let p = data;
-  if (!(data instanceof Promise)) {
-    p = Promise.resolve(data);
-  }
-  return p.then((d) => {
-    let pArray = this.children.map((func) => {
-      return func[RUN](d);
+  if (this.children.length > 0) {
+    rootP = rootP.then((outputs) => {
+      this.log('running children');
+      let pArray = this.children.map((child) => {
+        return child[RUN](outputs);
+      });
+      return Promise.all(pArray).then(() => outputs);
     });
-    return Promise.all(pArray);
-  });
-};
-
-Capu.prototype[RUN_TRANSFORM] = function(func, data) {
-  let result = func(data);
-  if (result instanceof Error) {
-    throw result;
-  } else if (!(result instanceof Promise)) {
-    result = Promise.resolve(result);
   }
-  return result;
+  return rootP;
 };
 
 Capu.prototype.dep = function(func) {
-  this.log('i\'m a dependancy for ' + func.id);
   this.children.push(func);
 };
 

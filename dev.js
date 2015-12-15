@@ -7,25 +7,20 @@ var endTime = new Date().getTime();
 let pipeline = new Capu({ a: 1 });
 
 let test1 = pipeline
-  .next(null)
+  // .next(null)
+  // .next(null, function(files) {
+  //   console.log('yaaay, one being run', files);
+  //   return files;
+  // })
   .src('alizain', 'zee')
-  .next(null, function one(files) {
-    console.log('yaaay, reduce being run');
+  // .next(null, function(files) {
+  //   console.log('yaaay, two being run', files);
+  //   return files;
+  // })
+  // .src('f')
+  .next(null, function(files) {
+    console.log('yaaay, three being run', files);
     return files;
   })
-  .next(null, function two(files) {
-    return new Promise(function(resolve, reject) {
-      console.log('yahooo, map being run');
-      console.log(files);
-      endTime = new Date().getTime();
-      console.log(endTime - startTime);
-      setImmediate(function() {
-        resolve(files);
-      }, 0);
-    });
-  })
-  .next(null, function three(files) {
-    console.log('i should not get run!');
-  });
 
 pipeline.once();
