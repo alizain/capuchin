@@ -31,6 +31,6 @@ const capu = new Capuchin({ opts });
 
 const index = capu.src('./index.html');
 
-const js = index.map(assets('script', '.js'));
-const css = index.map(assets(''))
+const js = index.next(assets.scripts());
+const css = index.next(assets.stylesheets())
 ```

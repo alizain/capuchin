@@ -1,9 +1,9 @@
 import Promise from 'bluebird';
-import VF from './vf';
+import VF from './lib/vf';
 import {
   generateSequence,
   logger
-} from './utils';
+} from './lib/utils';
 
 // Promise.onPossiblyUnhandledRejection((err) => {
 //   console.log('unhandled!!!!');
@@ -28,7 +28,7 @@ function Capu(opts, transform, ...sources) {
 }
 
 Capu.prototype[INITIALIZE] = function(sources) {
-  this.log('adding sources');
+  this.log('adding dependencies');
   sources.forEach((src) => {
     if (typeof src === 'string') {
       this.inputs.set(src, new VF(src));
